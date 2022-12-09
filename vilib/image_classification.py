@@ -30,7 +30,7 @@ def set_input_tensor(interpreter, image):
   input_tensor[:, :] = image
 
 
-def __classify_image(interpreter, image,labels_map):
+def __classify_image(interpreter, image, labels_map):
   """Returns a sorted array of classification results."""
   set_input_tensor(interpreter, image)
   interpreter.invoke()
@@ -83,7 +83,6 @@ def imgshow_fuc(input_height, input_width,labels):
       print("Ignoring empty camera frame.")
       # If loading a video, use 'break' instead of 'continue'.
       continue
-    
 
     # frame = cv2.flip(frame, -1) # Flip camera vertically
     image = cv2.resize(frame,(input_width,input_height))
@@ -173,9 +172,9 @@ def classify_image(image, model=model_path,labels=labels_path):
 
   if len(image) != 0:
     # resize
-    img = cv2.resize(image,(input_width,input_height))
+    img = cv2.resize(image,(input_width, input_height))
     # classify
-    results = __classify_image(interpreter,img,labels)
+    results = __classify_image(interpreter, img, labels)
     label_id, prob = results[0]
     print(labels[label_id], prob)
     # putText
