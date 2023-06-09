@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from distutils.log import warn
 import os, sys
+import platform
 import time
 import threading
 sys.path.append('./vilib')
@@ -43,6 +44,14 @@ def check_raspbain_version():
     _, result = run_command("cat /etc/debian_version|awk -F. '{print $1}'")
     return result.strip()
 
+def check_machine_type():
+    machine_type = platform.machine()
+    if machine_type == "armv7l":
+        return 32, machine_type
+    elif machine_type == "aarch64":
+        return 64, machine_type
+    else:
+        raise ValueError(f"[{machine_type}] not supported")
 
 def check_python_version():
     import sys
@@ -55,37 +64,21 @@ def check_python_version():
 rpi_model = check_rpi_model()
 python_version = check_python_version()
 raspbain_version = check_raspbain_version()
+os_bit, machine_type = check_machine_type()
 
+
+# https://qengineering.eu/install-opencv-4.5-on-raspberry-64-os.html
 APT_INSTALL_LIST = [ 
-    # install compilation tools
-    "cmake",
-    "gcc",
-    "g++",
-    # GTK support for GUI features, Camera support (v4l), Media Support (ffmpeg, gstreamer) etc
-    # https://docs.opencv.org/4.x/d2/de6/tutorial_py_setup_in_ubuntu.html   
-    "libavcodec-dev", 
-    "libavformat-dev ",
-    "libswscale-dev",
-    "libgstreamer-plugins-base1.0-dev", 
-    "libgstreamer1.0-dev",
-    "libgtk2.0-dev",
-    "libgtk-3-dev",
-    # update image format support library
-    "libpng-dev",
-    "libjpeg-dev",
-    "libopenexr-dev",
-    "libtiff-dev",
-    "libwebp-dev",
+    # install python3-picamera2 : https://datasheets.raspberrypi.com/camera/picamera2-manual.pdf
+    "python3-picamera2",
+    "python3-pyqt5",
+    "python3-opengl",
     # install python3-opencv
-    # "python3-opencv", 
-    # install additional dependencies for opencv
-    "libjasper-dev",
-    # "libqtgui4", # --------
-    # "libqt4-test",
-    # install python3-picamera
-    "python3-picamera",
-    # install mediapipe-rpi3 dependency
+    "python3-opencv",
+    "opencv-data",
+    # install ffmpeg
     "ffmpeg", 
+    # install mediapipe dependencies
     "libgtk-3-0",
     "libxcb-shm0",
     "libcdio-paranoia-dev", 
@@ -98,56 +91,43 @@ APT_INSTALL_LIST = [
     "libharfbuzz0b", 
     "libbluray2", 
     "libatlas-base-dev",
-    "libhdf5-103", 
-    "libdc1394-22", 
+    "libhdf5-103",
+    # "libdc1394-22", 
     # "libopenexr23", 
     "libzbar0",
 ]
 
 
 PIP_INSTALL_LIST = [
-    "opencv-contrib-python==4.5.3.56",
-    "numpy==1.21.4", 
     "Flask",
     "imutils",
     "pyzbar", # pyzbar:one-dimensional barcodes and QR codes
     "pyzbar[scripts]",
     "readchar", # will update setuptools to the latest version
-    "\'setuptools>59.0,<60.0\'", # The default installation location will change after setuptools version 60.0
+    'protobuf==3.20.0', # mediapipe need 
 ]
+
 
 if raspbain_version == "10":
     APT_INSTALL_LIST.append("libopenexr23")
 elif raspbain_version == "11":
     APT_INSTALL_LIST.append("libopenexr25")
     
-    warns.append('''\033[33m
- Mediapipe is currently only supported in Raspbian Buster !
- Object detection and pose detection are not working properly !
-    \033[0m''')
 
-# select mediapipe version for raspberry pi 3 or 4
-if rpi_model == 4:
-    PIP_INSTALL_LIST.append("mediapipe-rpi4")
-else:
-    PIP_INSTALL_LIST.append("mediapipe-rpi3")
-
-
-
-# select tflite_runtime version
-# https://github.com/google-coral/pycoral/releases/
+# # https://github.com/tensorflow/tensorflow/blob/v2.5.0/tensorflow/lite/g3doc/guide/python.md#install-tensorflow-lite-for-python
+# # select tflite_runtime version
+# # https://github.com/google-coral/pycoral/releases/
 if python_version[0] == 3:
     if python_version[1] == 7:
-        PIP_INSTALL_LIST.append("tflite_runtime-2.1.0.post1-cp37-cp37m-linux_armv7l.whl")
-    elif python_version[1] == 8:
-        PIP_INSTALL_LIST.append("tflite_runtime-2.5.0.post1-cp38-cp38-linux_armv7l.whl")
-    elif python_version[1] == 9:
-        PIP_INSTALL_LIST.append("tflite_runtime-2.5.0.post1-cp39-cp39-linux_armv7l.whl")
+        cp = f"cp37-cp37m"
+    elif python_version[1] > 7 and python_version[1] <= 10:
+        i = python_version[1]
+        cp = f"cp3{i}-cp3{i}"
 else:
-    print('[python version incompatibility] Currently only python 3.7, 3.8 and 3.9 are supported.')
+    print('Currently only python 3.7.x, 3.8.x, 3.9.x, 3.10.x are supported.')
     sys.exit(1)
-
-
+tflite_runtime_link = f"https://github.com/google-coral/pycoral/releases/download/v2.0.0/tflite_runtime-2.5.0.post1-{cp}-linux_{machine_type}.whl"
+PIP_INSTALL_LIST.append(tflite_runtime_link)
 
 # main function
 def install():
@@ -168,22 +148,25 @@ def install():
 
     print("Start installing vilib %s for user %s"%(__version__ ,user_name))
     print("Python version: %s.%s.%s"%(python_version[0], python_version[1], python_version[2]))
-    print("Raspbian version: %s"%(raspbain_version))
+    print("Raspbian version: %s %s"%(raspbain_version, machine_type))
     print("")
 
-
-    if "--no-dep" not in options:  
+    if "--no-dep" not in options:
+        print("apt install dependency:")
         do(msg="dpkg configure",
             cmd='sudo dpkg --configure -a')  
         do(msg="update apt-get",
             cmd='sudo apt-get update -y')
-
-        print("Install dependency")
         for dep in APT_INSTALL_LIST:
             do(msg="install %s"%dep,
                 cmd='sudo apt-get install %s -y'%dep)
+        print("pip3 install dependency:")
         for dep in PIP_INSTALL_LIST:
-            do(msg="install %s"%dep,
+            if dep.endswith('.whl'):
+                dep_name = dep.split("/")[-1]
+            else:
+                dep_name = dep
+            do(msg="install %s"%dep_name,
                 cmd='sudo pip3 install %s'%dep)
 
     print("Create workspace")
