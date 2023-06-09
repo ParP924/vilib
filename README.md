@@ -27,7 +27,7 @@ Download this repository to your Raspberry Pi:
 
 ```shell
 cd ~
-git clone https://github.com/sunfounder/vilib.git
+git clone -b bit64 https://github.com/sunfounder/vilib.git
 ```
 ## Install
 ```shell
