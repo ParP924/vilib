@@ -1,5 +1,19 @@
 # Change Log 
 
+## [0.1.0] - 2022-6-9
+
+### Changed
+- use the picamera2 library to support 64-bit Raspbian bullseye
+- Make mediapipe and tflite_runtime compatible with 64-bit Raspbian bullseye
+
+
+## [0.0.4] - 2022-5-19
+
+### Fixed
+- Increase compatibility for pi3 and pi4
+- Fix bug
+- Fixed use of setuptools and opencv-contrib-python version to avoid problems caused by new version
+
 
 ## [0.0.3] - 2022-5-19
 
