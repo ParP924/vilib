@@ -1,9 +1,11 @@
 import cv2
-
+# https://github.com/opencv/opencv-python
 
 '''Define parameters for face detection object'''
 # Default model path
 face_model_path = '/opt/vilib/haarcascade_frontalface_default.xml'
+# face_model_path = '/opt/vilib/haarcascade_profileface.xml'
+
 
 face_obj_parameter = {}
 face_obj_parameter['human_x'] = 320  # Maximum face block center x-axis coordinate
@@ -26,11 +28,11 @@ def get_face_obj_parameter(parameter):
         return int(face_obj_parameter['human_x']/214.0)-1   # max_size_object_coordinate_x
     elif parameter == 'y':
         return -1*(int(face_obj_parameter['human_y']/160.2)-1)  # max_size_object_coordinate_y
-    elif parameter == 'width':
+    elif parameter == 'w':
         return face_obj_parameter['human_w']   # objects_max_width
-    elif parameter == 'height':
+    elif parameter == 'h':
         return face_obj_parameter['human_h']   # objects_max_height
-    elif parameter == 'number':      
+    elif parameter == 'n':      
         return face_obj_parameter['human_n']   # objects_count
     elif parameter == 'all':
         return dict.copy(face_obj_parameter)
@@ -75,7 +77,7 @@ def face_detect(img, width, height, rectangle_color=(255, 0, 0)):
     face_cascade = cv2.CascadeClassifier(face_model_path)
 
     # Applying the face detection method on the grayscale image
-    faces = face_cascade.detectMultiScale(gray_img, scaleFactor=1.3, minNeighbors=2)
+    faces = face_cascade.detectMultiScale(gray_img, scaleFactor=1.3, minNeighbors=3)
     
     face_obj_parameter['human_n'] = len(faces)
 
