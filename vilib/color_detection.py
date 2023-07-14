@@ -2,15 +2,16 @@ import cv2
 import numpy as np
 
 
-'''The range of H in HSV space for colors'''
+'''The range of H, S, V in HSV space for colors'''
+# You can run ../examples/hsv_threshold_analyzer.py to analyze and adjust these values
 color_dict = {
-        'red':[0,4],
-        'orange':[5,18],
-        'yellow':[22,37],
-        'green':[42,85],
-        'blue':[92,110],
-        'purple':[115,165],
-        'red_2':[165,180],
+        'red':[[0, 8], [80, 255], [0, 255]],
+        'orange':[[12, 18], [80, 255], [80, 255]],
+        'yellow':[[20, 60], [60, 255], [120, 255]],
+        'green':[[45, 85], [120, 255], [80, 255]],
+        'blue':[[92,120], [120, 255], [80, 255]],
+        'purple':[[115,155], [30, 255], [60, 255]],
+        'magenta':[[160,180], [30, 255], [60, 255]],
     }
 
 '''Define parameters for color detection object'''
@@ -29,7 +30,7 @@ def get_color_obj_parameter(parameter):
     '''
     Returns the coordinates, size, and number of detected color
 
-    :param parameter: Parameter to be returned, could be: "all", "x", "y", "width", "height", "number"
+    :param parameter: Parameter to be returned, could be: "all", "x", "y", "w", "h", "n"
     :type name: str
     :returns: The coordinates, size, and number of detected color, or all of them.
     :rtype: int or dict
@@ -38,17 +39,17 @@ def get_color_obj_parameter(parameter):
         return int(color_obj_parameter['x']/214.0)-1 # max_size_object_coordinate_y
     elif parameter == 'y':
         return -1*(int(color_obj_parameter['y']/160.2)-1) # max_size_object_coordinate_y
-    elif parameter == 'width':
+    elif parameter == 'w':
         return color_obj_parameter['w']   # objects_max_width
-    elif parameter == 'height':
+    elif parameter == 'h':
         return color_obj_parameter['h']   # objects_max_height
-    elif parameter == 'number':      
+    elif parameter == 'n':      
         return color_obj_parameter['n']   # objects_count
     elif parameter == 'all':
         return dict.copy(color_obj_parameter) 
     return None
 
-def color_detect(img, width, height, color_name, rectangle_color=(0, 0, 255)):
+def color_detect_work(img, width, height, color_name, rectangle_color=(0, 0, 255)):
     '''
     Color detection with opencv
 
@@ -76,16 +77,19 @@ def color_detect(img, width, height, color_name, rectangle_color=(0, 0, 255)):
     # Convert the image in BGR to HSV
     hsv = cv2.cvtColor(resize_img, cv2.COLOR_BGR2HSV) 
    
-    # Set range for red color and  define mask
-    color_lower = np.array([min(color_dict[color_name]), 60, 60])
-    color_upper = np.array([max(color_dict[color_name]), 255, 255])
+    # Set range for red color and define mask
+    # color_lower = np.array([min(color_dict[color_name]), 60, 60])
+    # color_upper = np.array([max(color_dict[color_name]), 255, 255])
+    color_lower = np.array([min(color_dict[color_name][0]), min(color_dict[color_name][1]), min(color_dict[color_name][2])])
+    color_upper = np.array([max(color_dict[color_name][0]), max(color_dict[color_name][1]), max(color_dict[color_name][2])])
+   
     mask = cv2.inRange(hsv, color_lower, color_upper)          
     if color_name == 'red':
         mask_2 = cv2.inRange(hsv, (167,0,0), (180,255,255))
         mask = cv2.bitwise_or(mask, mask_2)
 
     # define a 5*5 kernel
-    kernel_5 = np.ones((5,5),np.uint8)
+    kernel_5 = np.ones((5,5), np.uint8)
 
     # opening the image (erosion followed by dilation), to remove the image noise
     open_img = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_5, iterations=1)      
@@ -118,9 +122,22 @@ def color_detect(img, width, height, color_name, rectangle_color=(0, 0, 255)):
                 w = w * zoom
                 h = h * zoom
                 # Draw rectangle around  the color block
-                cv2.rectangle(img, (x, y), (x+w, y+h), rectangle_color, 2)
+                cv2.rectangle(img, # image
+                            (x, y), # start position
+                            (x+w, y+h), # end position
+                            rectangle_color, # color
+                            2, # thickness
+                        )
                 # Draw color name
-                cv2.putText(img, color_name, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, rectangle_color, 2)
+                cv2.putText(img, # image
+                            color_name, # text 
+                            (x, y-5), # start position
+                            cv2.FONT_HERSHEY_SIMPLEX, # font
+                            0.72, # font size
+                            rectangle_color, # color
+                            1, # thickness
+                            cv2.LINE_AA, # line_type: LINE_8 (default), LINE_4, LINE_AA
+                        )
             else:
                 continue
 
@@ -152,7 +169,7 @@ def test(color):
 
         # frame = cv2.flip(frame, -1) # Flip camera vertically
 
-        out_img = color_detect(frame, 640, 480, color)
+        out_img = color_detect_work(frame, 640, 480, color)
 
         cv2.imshow('Color detecting ...', out_img)
 
