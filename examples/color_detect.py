@@ -5,9 +5,10 @@ from time import sleep
 
 def main():
 
-    Vilib.camera_start(vflip=False,hflip=False) #
+    Vilib.camera_start(vflip=False,hflip=False)
+    Vilib.show_fps()
     Vilib.display(local=True,web=True)
-    Vilib.color_detect(color="red")  # red, green, blue, yellow , orange, purple
+    Vilib.color_detect(color="red")  # red, green, blue, yellow , orange, purple, magenta
     sleep(1)
     # Vilib.detect_obj_parameter['color_x']    # Maximum color block center coordinate x
     # Vilib.detect_obj_parameter['color_y']    # Maximum color block center coordinate x
