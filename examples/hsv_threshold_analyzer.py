@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 import numpy as np
 import cv2
 
@@ -25,7 +26,7 @@ def main():
     cap = cv2.VideoCapture(0)
     cap.set(3, 640)
     cap.set(4, 480)
-    
+
     # Configuration adjustment window
     hsv_adjust_win = "HSV Threshold Analyzer"
     cv2.namedWindow(hsv_adjust_win, cv2.WINDOW_NORMAL)
