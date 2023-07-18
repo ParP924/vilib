@@ -35,6 +35,9 @@ user_home = os.popen(f'getent passwd {user} | cut -d: -f 6').readline().strip()
 # print(f"user: {user}")
 # print(f"user_home: {user_home}")
 
+# Default path for pictures and videos
+Default_Pictures_Path = '%s/Pictures/vilib/'%user_home
+Default_Videos_Path = '%s/Videos/vilib/'%user_home
 
 # utils
 # =================================================================
@@ -144,8 +147,17 @@ class Vilib(object):
     detect_obj_parameter = {}
     color_detect_color = None
     face_detect_sw = False
+    hands_detect_sw = False
+    pose_detect_sw = False
+    image_classify_sw = False
+    image_classification_model = None
+    image_classification_labels = None
+    objects_detect_sw = False
+    objects_detection_model = None
+    objects_detection_labels = None
+    qrcode_detect_sw = False
+    traffic_detect_sw = False
 
-    
     @staticmethod
     def camera():
         # init picamera
@@ -193,7 +205,12 @@ class Vilib(object):
                     # ----------- image detection and recognition ----------------
                     Vilib.img = Vilib.color_detect_func(Vilib.img)
                     Vilib.img = Vilib.face_detect_func(Vilib.img)
-
+                    Vilib.img = Vilib.hands_detect_fuc(Vilib.img)
+                    Vilib.img = Vilib.pose_detect_fuc(Vilib.img)
+                    Vilib.img = Vilib.image_classify_fuc(Vilib.img)
+                    Vilib.img = Vilib.object_detect_fuc(Vilib.img)
+                    Vilib.img = Vilib.qrcode_detect_func(Vilib.img)
+                    Vilib.img = Vilib.traffic_detect_fuc(Vilib.img)
 
                     # ----------- calculate fps and draw fps ----------------
                     # calculate fps
@@ -217,15 +234,17 @@ class Vilib(object):
                             )
 
                     # ----------- display on desktop ----------------
-                    try:
-                        # cv2.imshow(Vilib.Windows_Name, Vilib.img_array[0])
-                        cv2.imshow(Vilib.Windows_Name, Vilib.img)
-                        cv2.waitKey(1)
-                        if cv2.getWindowProperty(Vilib.Windows_Name, cv2.WND_PROP_VISIBLE) == 0:
-                            cv2.destroyWindow(Vilib.Windows_Name)
-                    except Exception as e: 
-                        print(f"imshow failed:\n  {e}")
-                        break
+                    if Vilib.imshow_flag == True:
+                        try:
+                            # cv2.imshow(Vilib.Windows_Name, Vilib.img_array[0])
+                            cv2.imshow(Vilib.Windows_Name, Vilib.img)
+                            cv2.waitKey(1)
+                            if cv2.getWindowProperty(Vilib.Windows_Name, cv2.WND_PROP_VISIBLE) == 0:
+                                cv2.destroyWindow(Vilib.Windows_Name)
+                        except Exception as e:
+                            Vilib.imshow_flag = False
+                            print(f"imshow failed:\n  {e}")
+                            break
 
                     # ----------- web display ----------------
                     if Vilib.web_display_flag == True:
@@ -301,6 +320,95 @@ class Vilib(object):
     def hide_fps():
         Vilib.draw_fps = False
 
+    # take photo
+    # =================================================================
+    @staticmethod
+    def take_photo(photo_name, path=Default_Pictures_Path):
+        # ----- check path -----
+        if not os.path.exists(path):
+            # print('Path does not exist. Creating path now ... ')
+            os.makedirs(name=path, mode=0o751, exist_ok=True)
+            time.sleep(0.01) 
+        # ----- save photo -----
+        # img =  Vilib.img_array[0]
+        img =  Vilib.img
+        for _ in range(5):
+            if img is not None:
+                cv2.imwrite(path + '/' + photo_name +'.jpg',img )
+                # print('The photo is saved as '+path+'/'+photo_name+'.jpg')
+                break
+            else:
+                time.sleep(0.01)
+        else:
+            print('Photo save failed .. ')
+
+    # record video
+    # =================================================================
+    rec_video_set = {}
+
+    rec_video_set["fourcc"] = cv2.VideoWriter_fourcc(*'XVID') 
+    #rec_video_set["fourcc"] = cv2.cv.CV_FOURCC("D", "I", "B", " ") 
+
+    rec_video_set["fps"] = 30.0
+    rec_video_set["framesize"] = (640, 480)
+    rec_video_set["isColor"] = True
+
+    rec_video_set["name"] = "default"
+    rec_video_set["path"] = Default_Videos_Path
+
+    rec_video_set["start_flag"] = False
+    rec_video_set["stop_flag"] =  False
+
+    rec_thread = None
+
+    @staticmethod
+    def rec_video_work():
+        if not os.path.exists(Vilib.rec_video_set["path"]):
+            # print('Path does not exist. Creating path now ... ')
+            os.makedirs(name=Vilib.rec_video_set["path"],
+                        mode=0o751,
+                        exist_ok=True
+            )
+            time.sleep(0.01)
+        video_out = cv2.VideoWriter(Vilib.rec_video_set["path"]+'/'+Vilib.rec_video_set["name"]+'.avi',
+                                    Vilib.rec_video_set["fourcc"], Vilib.rec_video_set["fps"], 
+                                    Vilib.rec_video_set["framesize"], Vilib.rec_video_set["isColor"])
+    
+        while True:
+            if Vilib.rec_video_set["start_flag"] == True:
+                # video_out.write(Vilib.img_array[0])
+                video_out.write(Vilib.img)
+            if Vilib.rec_video_set["stop_flag"] == True:
+                video_out.release() # note need to release the video writer
+                Vilib.rec_video_set["start_flag"] == False
+                break
+
+    @staticmethod
+    def rec_video_run():
+        if Vilib.rec_thread != None:
+            Vilib.rec_video_stop()
+        Vilib.rec_video_set["stop_flag"] = False
+        Vilib.rec_thread = threading.Thread(name='rec_video', target=Vilib.rec_video_work)
+        Vilib.rec_thread.daemon = True
+        Vilib.rec_thread.start()
+
+    @staticmethod
+    def rec_video_start():
+        Vilib.rec_video_set["start_flag"] = True 
+        Vilib.rec_video_set["stop_flag"] = False
+
+    @staticmethod
+    def rec_video_pause():
+        Vilib.rec_video_set["start_flag"] = False
+
+    @staticmethod
+    def rec_video_stop():
+        Vilib.rec_video_set["start_flag"] == False
+        Vilib.rec_video_set["stop_flag"] = True
+        if Vilib.rec_thread != None:
+            Vilib.rec_thread.join(3)
+            Vilib.rec_thread = None
+
     # color detection
     # =================================================================
     @staticmethod 
@@ -361,3 +469,142 @@ class Vilib(object):
             Vilib.detect_obj_parameter['human_n'] = Vilib.get_face_obj_parameter('n')
         return img
 
+    # hands detection
+    # =================================================================
+    @staticmethod
+    def hands_detect_switch(flag=False):
+        from .hands_detection import DetectHands
+        Vilib.detect_hands = DetectHands()
+        Vilib.hands_detect_sw = flag
+
+    @staticmethod
+    def hands_detect_fuc(img):
+        if Vilib.hands_detect_sw == True:
+            img, Vilib.detect_obj_parameter['hands_joints'] =  Vilib.detect_hands.work(image=img)   
+        return img
+
+    # pose detection
+    # =================================================================
+    @staticmethod
+    def pose_detect_switch(flag=False):
+        from .pose_detection import DetectPose
+        Vilib.pose_detect = DetectPose()
+        Vilib.pose_detect_sw = flag
+
+    @staticmethod
+    def pose_detect_fuc(img):
+        if Vilib.pose_detect_sw == True:
+            img,Vilib.detect_obj_parameter['body_joints'] = Vilib.pose_detect.work(image=img)   
+        return img
+
+    # image classification
+    # =================================================================
+    @staticmethod
+    def image_classify_switch(flag=False):
+        Vilib.image_classify_sw = flag
+
+    @staticmethod
+    def image_classify_set_model(path):
+        if not os.path.exists(path):
+            raise ValueError('incorrect model path ')          
+        Vilib.image_classification_model = path
+
+    @staticmethod
+    def image_classify_set_labels(path):
+        if not os.path.exists(path):
+            raise ValueError('incorrect labels path ')  
+        Vilib.image_classification_labels = path
+
+    @staticmethod
+    def image_classify_fuc(img):
+        if Vilib.image_classify_sw == True:
+            # print('classify_image starting')
+            from .image_classification import classify_image
+            img = classify_image(image=img,
+                                model=Vilib.image_classification_model,
+                                labels=Vilib.image_classification_labels)   
+        return img   
+
+
+    # objects detection
+    # =================================================================
+    @staticmethod
+    def object_detect_switch(flag=False):
+        Vilib.objects_detect_sw = flag
+
+    @staticmethod
+    def object_detect_set_model(path):
+        if not os.path.exists(path):
+            raise ValueError('incorrect model path ')    
+        Vilib.objects_detection_model = path
+
+    @staticmethod
+    def object_detect_set_labels(path):
+        if not os.path.exists(path):
+            raise ValueError('incorrect labels path ')    
+        Vilib.objects_detection_labels = path
+
+    @staticmethod
+    def object_detect_fuc(img):
+        if Vilib.objects_detect_sw == True:
+            # print('detect_objects starting')
+            from .objects_detection import detect_objects
+            img = detect_objects(image=img,
+                                model=Vilib.objects_detection_model,
+                                labels=Vilib.objects_detection_labels)   
+        return img
+
+
+    # qrcode recognition
+    # =================================================================
+    @staticmethod
+    def qrcode_detect_switch(flag=False):
+        Vilib.qrcode_detect_sw  = flag
+        if Vilib.qrcode_detect_sw:
+            from .qrcode_recognition import qrcode_recognize, get_qrcode_obj_parameter
+            Vilib.qrcode_recognize = qrcode_recognize
+            Vilib.get_qrcode_obj_parameter = get_qrcode_obj_parameter
+            Vilib.detect_obj_parameter['qr_x'] = Vilib.get_qrcode_obj_parameter('x')
+            Vilib.detect_obj_parameter['qr_y'] = Vilib.get_qrcode_obj_parameter('y')
+            Vilib.detect_obj_parameter['qr_w'] = Vilib.get_qrcode_obj_parameter('w')
+            Vilib.detect_obj_parameter['qr_h'] = Vilib.get_qrcode_obj_parameter('h')
+            Vilib.detect_obj_parameter['qr_data'] = Vilib.get_qrcode_obj_parameter('data')
+
+    @staticmethod
+    def qrcode_detect_func(img):
+        if Vilib.qrcode_detect_sw:
+            img = Vilib.qrcode_recognize(img, border_rgb=(255, 0, 0))
+            Vilib.detect_obj_parameter['qr_x'] = Vilib.get_qrcode_obj_parameter('x')
+            Vilib.detect_obj_parameter['qr_y'] = Vilib.get_qrcode_obj_parameter('y')
+            Vilib.detect_obj_parameter['qr_w'] = Vilib.get_qrcode_obj_parameter('w')
+            Vilib.detect_obj_parameter['qr_h'] = Vilib.get_qrcode_obj_parameter('h')
+            Vilib.detect_obj_parameter['qr_data'] = Vilib.get_qrcode_obj_parameter('data')
+        return img
+
+    # traffic sign detection
+    # =================================================================
+    @staticmethod
+    def traffic_detect_switch(flag=False):
+        Vilib.traffic_detect_sw  = flag
+        if Vilib.traffic_detect_sw:
+            from .traffic_sign_detection import traffic_sign_detect, get_traffic_sign_obj_parameter
+            Vilib.traffic_detect_work = traffic_sign_detect
+            Vilib.get_traffic_obj_parameter = get_traffic_sign_obj_parameter
+            Vilib.detect_obj_parameter['traffic_sign_x'] = Vilib.get_traffic_obj_parameter('x')
+            Vilib.detect_obj_parameter['traffic_sign_y'] = Vilib.get_traffic_obj_parameter('y')
+            Vilib.detect_obj_parameter['traffic_sign_w'] = Vilib.get_traffic_obj_parameter('w')
+            Vilib.detect_obj_parameter['traffic_sign_h'] = Vilib.get_traffic_obj_parameter('h')
+            Vilib.detect_obj_parameter['traffic_sign_t'] = Vilib.get_traffic_obj_parameter('t')
+            Vilib.detect_obj_parameter['traffic_sign_acc'] = Vilib.get_traffic_obj_parameter('acc')
+
+    @staticmethod
+    def traffic_detect_fuc(img):
+        if Vilib.qrcode_detect_sw:
+            img = Vilib.traffic_detect_work(img, border_rgb=(255, 0, 0))
+            Vilib.detect_obj_parameter['traffic_sign_x'] = Vilib.get_traffic_obj_parameter('x')
+            Vilib.detect_obj_parameter['traffic_sign_y'] = Vilib.get_traffic_obj_parameter('y')
+            Vilib.detect_obj_parameter['traffic_sign_w'] = Vilib.get_traffic_obj_parameter('w')
+            Vilib.detect_obj_parameter['traffic_sign_h'] = Vilib.get_traffic_obj_parameter('h')
+            Vilib.detect_obj_parameter['traffic_sign_t'] = Vilib.get_traffic_obj_parameter('t')
+            Vilib.detect_obj_parameter['traffic_sign_acc'] = Vilib.get_traffic_obj_parameter('acc')
+        return img
