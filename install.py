@@ -101,7 +101,8 @@ def check_rpi_model():
 
 def check_raspbain_version():
     _, result = run_command("cat /etc/debian_version|awk -F. '{print $1}'")
-    return int(result.strip())
+    return int(12)
+    #return int(result.strip())
 
 def check_python_version():
     import sys
@@ -142,10 +143,10 @@ if raspbain_version <= 10:
 
 # Dependencies list installed with apt
 # =================================================================
-APT_INSTALL_LIST = [ 
-    "python3-libcamera",
+APT_GET_INSTALL_LIST = [ 
+#    "python3-libcamera",
     # install python3-picamera2: https://datasheets.raspberrypi.com/camera/picamera2-manual.pdf
-    "python3-picamera2",
+    #"python3-picamera2",
     "python3-pyqt5",
     "python3-opengl",
     # install python3-opencv: # https://qengineering.eu/install-opencv-4.5-on-raspberry-64-os.html
@@ -170,11 +171,18 @@ APT_INSTALL_LIST = [
     # "libopenexr25",
     "libzbar0",
     "libopenblas-dev",
+    "libavformat-dev",
+    "libavfilter-dev",
+    "libavdevice-dev",
+    "ffmpeg",
+    "libcap-dev",
+    "libfmt-dev"
 ]
 
 # Dependencies list installed with pip3
 # =================================================================
 PIP_INSTALL_LIST = [
+    "picamera2",
     "tflite-runtime",
     "Flask",
     "imutils",
@@ -216,7 +224,7 @@ def install():
             cmd='dpkg --configure -a')  
         do(msg="update apt-get",
             cmd='apt-get update -y')
-        for dep in APT_INSTALL_LIST:
+        for dep in APT_GET_INSTALL_LIST:
             do(msg=f"install {dep}",
                 cmd=f'apt-get install {dep} -y')
 
@@ -242,7 +250,7 @@ def install():
                 cmd=f'pip3 install {dep} {_is_bsps}')
         #
         if is_mediapipe_supported == False:
-            print('\033[38;5;8m  mediapipe is not supported on this platform... Skip \033[0m')
+            print('\033[1;33m mediapipe is not supported on this platform... Skip \033[0m')
 
     print("Create workspace")
     # ===================================
@@ -285,3 +293,4 @@ if __name__ == "__main__":
         sys.stdout.write(' \033[1D')
         sys.stdout.write('\033[?25h') # cursor visible 
         sys.stdout.flush()
+y
