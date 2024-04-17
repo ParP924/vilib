@@ -4,7 +4,6 @@
 sudo apt-get install -y build-essential
 sudo apt-get install -y git python3-pip python3-setuptools python3-smbus
 sudo apt-get install -y pkg-config zip unzip
-pip3 install meson
 sudo apt-get install -y libyaml-dev python3-yaml python3-ply python3-jinja2
 
 # Recommended for IPA module signing
@@ -20,14 +19,20 @@ sudo apt-get install -y libpython3-dev pybind11-dev libdrm-dev
 sudo apt-get install -y libevent-dev libdrm-dev
 
 # Optional for qcam
-sudo apt-get install -y libtiff-dev qtbase5-dev qttools5-dev-tools
+sudo apt-get install -y libtiff-dev qtbase5-dev qttools5-dev-tools ninja-build
+
+# Pip dependencies
+pip3 install meson pybind11
+# source your .profile and .bashrc
+source ~/.profile
+source ~/.bashrc
 
 # Clone libcamera repository
 git clone https://git.libcamera.org/libcamera/libcamera.git 
 
 # Build libcamera
 cd libcamera
-meson setup -Dpipelines=all -Dipas=all -Dv4l2=true -Dgstreamer=enabled -Dtest=false -Dlc-compliance=disabled -Dcam=enabled -Dqcam=enabled -Ddocumentation=disabled -Dpycamera=enabled build
+meson setup -Dpipelines=all -Dv4l2=true -Dgstreamer=enabled -Dtest=false -Dlc-compliance=disabled -Dcam=enabled -Dqcam=enabled -Ddocumentation=disabled -Dpycamera=enabled build
 cd build
 ninja
 
@@ -35,7 +40,7 @@ ninja
 sudo ninja install
 
 # Clean up
-#cd ../..
+cd ../..
 #rm -rf libcamera
 
 # Add libcamera to the python path
